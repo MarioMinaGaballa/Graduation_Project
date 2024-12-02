@@ -12,7 +12,7 @@ const limit = query.limit|| 10;//2
 const page =query.page || 1;//3
 const skip = (page-1)*limit
   // get all courses from DB using Course Model
-  const  users = await  User.find({},{"__v":false,"password":false}).limit(limit).skip(skip);
+  const  users = await  User.find({},{"__v":false,"password":false,"token":false}).limit(limit).skip(skip);
   res.json({ status: httpStatusText.SUCCESS, data: { users } });
 })
 

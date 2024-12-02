@@ -1,7 +1,8 @@
 require("dotenv").config()
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
+const cors = require('cors');const compression= require('compression')
+
 const userController = require('./Controllers/Users.Controller')
 const verifyToken =require('./middleware/verifyToken')
 const httpStatusText = require('./utils/http.status.text');
@@ -10,12 +11,12 @@ const url =process.env.MONGO_URL
 const port = process.env.PORT
 app.use(express.json());
 app.use(cors());
+app.use(compression())
 const otpRoutes = require('./routes/otpRoutes');
 
 mongoose.connect(url)
   .then(() => console.log('MongoDB connected successfully'))
   .catch((err) => console.log(err));
-
 app.use('/api',userController.getAllUsers)
 // verify Token
 app.use ("/register",userController.register)

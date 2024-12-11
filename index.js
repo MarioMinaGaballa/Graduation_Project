@@ -12,11 +12,16 @@ const port = process.env.PORT
 app.use(express.json());
 app.use(cors());
 app.use(compression())
+const db = require('./Schema/databasMySql')
 const otpRoutes = require('./routes/otpRoutes');
 
-mongoose.connect(url)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch((err) => console.log(err));
+
+// MongoDB
+// mongoose.connect(url)
+//   .then(() => console.log('MongoDB connected successfully'))
+//   .catch((err) => console.log(err));
+
+
 app.use('/api',userController.getAllUsers)
 // verify Token
 app.use ("/register",userController.register)

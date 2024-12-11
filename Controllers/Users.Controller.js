@@ -28,7 +28,6 @@ const getAllUsers = asyncMiddleware(async (req, res) => {
 const register = asyncMiddleware(async (req, res, next) => {
   const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
 
-  console.log(req.body);
 
   // Validate required fields
   if (!firstName || !lastName || !phone || !email || !password || !confirmPassword) {
@@ -119,9 +118,63 @@ const Login = asyncMiddleware(async (req, res, next) => {
   }
 });
 
+const updateUser = asyncMiddleware(async (req, res, next) => {
+  const userId = req.params.id;
+  const { firstName, lastName, email, phone } = req.body;
+
+  if (!firstName || !lastName || !email || !phone) {
+    return next(appError.create("All fields are required", 400, httpStatusText.FAIL));
+  }
+  const userCheckQuery = "SELECT * FROM users WHERE User_id = ?";
+  const [user] = await userSql.query(userCheckQuery, [userId]);
+
+  if (user.length === 0) {
+    return res.status(404).json({
+      status: 'error',
+      message: `User with ID ${userId} not found`,
+      code: 404,
+      data: null
+    });
+  }
+
+  const updateQuery = `
+    UPDATE users 
+    SET first_name = ?, last_name = ?, email = ?, phone = ? 
+    WHERE User_id = ?
+  `;
+  const values = [firstName, lastName, email, phone, userId];
+  try {
+    const [result] = await userSql.query(updateQuery, values);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: `User with ID ${userId} not found`,
+        code: 404,
+        data: null
+      });
+    }
+    res.status(200).json({ message: 'The user has been updated successfully' });
+  } catch (err) {
+    console.error('Error during update:', err.message); 
+    return next(appError.create("An error occurred while updating the user", 500, httpStatusText.FAIL));
+  }
+});
+
+
+const forgotPassword = asyncMiddleware(async(req,res,next)=>{
+    const user = await userSql.query('SELECT * FROM users WHERE email = ?', [email]);
+    if(!user){
+      const error = appError.create("User is not found", 404, httpStatusText.FAIL);
+    return next(error);
+    }
+   
+
+})
 
 module.exports={
   getAllUsers,
   register,
-  Login
+  Login,
+  forgotPassword,
+  updateUser
 }

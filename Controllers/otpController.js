@@ -6,7 +6,7 @@ let otpData = {};
 
 exports.sendOtp = async (req, res) => {
     const email = req.body.email; 
-    const otp = otpGenerator.generateOtp(6); 
+    const otp = otpGenerator.generateOtp(6);
     const expirationTime = Date.now() +  60 * 1000; 
 
     otpData[email] = { otp, expirationTime };

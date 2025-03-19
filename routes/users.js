@@ -27,4 +27,9 @@ router
   .get(userController.getResetPasswordView)
   .post(userController.postResetPassword)
 
+
+
+
+
+
 module.exports = router;

@@ -6,6 +6,13 @@ const genrateToken = require("../utils/genrateJWT");
 const jwt = require("jsonwebtoken");
 const userSql = require("../Schema/databasMySql");
 const nodemailer = require('nodemailer');
+const fileUpload = require('express-fileupload');
+const FileType = require('file-type');
+const multer =require("multer")
+const path = require('path');
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
 const smtpTransport = require('nodemailer-smtp-transport');
 
 const getAllUsers = asyncMiddleware(async (req, res) => {
@@ -38,6 +45,8 @@ const register = asyncMiddleware(async (req, res, next) => {
     confirmPassword,
     isAdmin,
   } = req.body;
+
+  console.log(firstName)
 
   // Validate required fields
   if (
@@ -113,7 +122,6 @@ const register = asyncMiddleware(async (req, res, next) => {
 const Login = asyncMiddleware(async (req, res, next) => {
   const { email, password } = req.body;
 
-  // Validate required fields
   if (!email || !password) {
     const error = appError.create(
       "Email and password are required",
@@ -124,31 +132,26 @@ const Login = asyncMiddleware(async (req, res, next) => {
   }
 
   try {
-    // Query MySQL to check if the user exists
     const [userRows] = await userSql.query(
       "SELECT * FROM users WHERE email = ?",
       [email]
     );
 
-    // Check if user is found
     if (userRows.length === 0) {
       const error = appError.create("User Not Found", 400, httpStatusText.FAIL);
       return next(error);
     }
 
-    const user = userRows[0]; // User is the first item in the result array
+    const user = userRows[0]; 
 
-    // Compare the provided password with the stored hashed password
     const matchedPassword = await bcrypt.compare(password, user.password);
 
     if (matchedPassword) {
-      // Generate token if password matches
       const token = await genrateToken({ email: user.email, id: user.User_id }); // Assuming `Usre_id` is the primary key
       return res
         .status(200)
         .json({ status: httpStatusText.SUCCESS, data: { token } });
     } else {
-      // Password mismatch error
       const error = appError.create(
         "Email or Password is incorrect. Please try again.",
         400,
@@ -336,6 +339,9 @@ const postResetPassword = asyncMiddleware(async (req, res, next) => {
 });
 
 
+
+
+
 module.exports = {
   getAllUsers,
   register,
@@ -344,5 +350,5 @@ module.exports = {
   sendforgotPasswordLink,
   getforgotPasswordView,
   getResetPasswordView,
-  postResetPassword
+  postResetPassword,
 };

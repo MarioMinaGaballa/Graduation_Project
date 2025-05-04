@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Test User Images</title>
+  <style>
+    body { font-family: Arial; }
+    #images img { width: 200px; margin: 10px; border: 1px solid #ccc; }
+    #images { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>صور المستخدم</h2>
+  <input type="email" id="emailInput" placeholder="ادخل البريد الإلكتروني" style="width:250px;">
+  <button onclick="fetchImages()">عرض الصور</button>
+  <div id="images"></div>
+
+  <script>
+    function fetchImages() {
+      const email = document.getElementById("emailInput").value.trim();
+      const imagesDiv = document.getElementById("images");
+      imagesDiv.innerHTML = "جاري التحميل ...";
+      if (!email) {
+        imagesDiv.innerHTML = "يرجى إدخال البريد الإلكتروني.";
+        return;
+      }
+
+      fetch("http://localhost:3001/api/photo/images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      })
+      .then(response => response.json())
+      .then(data => {
+        imagesDiv.innerHTML = "";
+        if (data.images && data.images.length > 0) {
+          data.images.forEach(img => {
+            const imageElem = document.createElement("img");
+            imageElem.src = img.imageUrl;
+            imageElem.alt = "User Photo";
+            imagesDiv.appendChild(imageElem);
+          });
+        } else {
+          imagesDiv.innerText = "لا توجد صور لهذا المستخدم.";
+        }
+      })
+      .catch(err => {
+        imagesDiv.innerText = "حدث خطأ أثناء جلب الصور.";
+        console.error(err);
+      });
+    }
+  </script>
+</body>
+</html>

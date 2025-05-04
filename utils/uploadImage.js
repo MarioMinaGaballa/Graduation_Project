@@ -18,9 +18,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 1024 * 1024 * 5 }, // الحد الأقصى 5 ميجا
+    limits: { fileSize: 1024 * 1024 * 15 }, // الحد الأقصى 15 ميجا
     fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
+        console.log('mimetype:', file.mimetype);
+        if (file.mimetype && file.mimetype.startsWith('image/')) {
             cb(null, true); // نقبل الصور بس
         } else {
             cb(new Error('ممنوع غير الصور'), false);

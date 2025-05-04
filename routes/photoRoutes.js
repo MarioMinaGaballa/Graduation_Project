@@ -8,7 +8,7 @@ router.get('/', (req, res) => {
     res.send("Welcome to upload photo");
 });
 
-router.post('/upload/:user_id', upload.single('image'), uploadImage.uploadImage);
-router.get('/images/:user_id', uploadImage.getImage);
+router.post('/upload', upload.single('image'), uploadImage.uploadImage);
+router.get('/images', uploadImage.getImage);
 
 module.exports = router;

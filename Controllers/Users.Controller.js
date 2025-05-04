@@ -96,14 +96,17 @@ const register = asyncMiddleware(async (req, res, next) => {
       );
 
       const userId = userResult.insertId;
+      console.log('New user created with ID:', userId);
 
-      // Insert car settings
+      // Insert car settings with user_id
       const [carResult] = await userSql.query(
         `INSERT INTO car_settings 
-        (letters, plate_number, car_color, car_model) 
-        VALUES (?, ?, ?, ?)`,
-        [letters, plate_number, car_color, car_model]
+        (user_id, letters, plate_number, car_color, car_model) 
+        VALUES (?, ?, ?, ?, ?)`,
+        [userId, letters, plate_number, car_color, car_model]
       );
+
+      console.log('Car settings created for user:', userId);
 
       // Commit transaction
       await userSql.query('COMMIT');
@@ -166,6 +169,7 @@ const register = asyncMiddleware(async (req, res, next) => {
     } catch (err) {
       // Rollback transaction if any error occurs
       await userSql.query('ROLLBACK');
+      console.error('Error during registration transaction:', err);
       throw err;
     }
   } catch (err) {
@@ -190,14 +194,19 @@ const Login = asyncMiddleware(async (req, res, next) => {
   }
 
   try {
+    // Check if user exists
     const [userRows] = await userSql.query(
       "SELECT * FROM users WHERE email = ?",
       [email]
     );
 
     if (userRows.length === 0) {
-      const error = appError.create("User Not Found", 400, httpStatusText.FAIL);
-      return next(error);
+      // User doesn't exist, redirect to signup
+      return res.status(400).json({
+        status: httpStatusText.FAIL,
+        message: "User not found. Please sign up first.",
+        redirect: "/signup"
+      });
     }
 
     const user = userRows[0]; 
@@ -205,10 +214,14 @@ const Login = asyncMiddleware(async (req, res, next) => {
     const matchedPassword = await bcrypt.compare(password, user.password);
 
     if (matchedPassword) {
-      const token = await genrateToken({ email: user.email, id: user.User_id }); // Assuming `Usre_id` is the primary key
+      const token = await genrateToken({ email: user.email, id: user.User_id });
       return res
         .status(200)
-        .json({ status: httpStatusText.SUCCESS, data: { token } });
+        .json({ 
+          status: httpStatusText.SUCCESS, 
+          data: { token },
+          message: "Login successful"
+        });
     } else {
       const error = appError.create(
         "Email or Password is incorrect. Please try again.",
@@ -228,54 +241,67 @@ const Login = asyncMiddleware(async (req, res, next) => {
   }
 });
 
-const updateUser = asyncMiddleware(async (req, res, next) => {
-  const userId = req.params.id;
-  const { firstName, lastName, email, phone } = req.body;
+const updateUserAndCar = asyncMiddleware(async (req, res, next) => {
+  const { email, firstName, lastName, phone, letters, plate_number, car_color, car_model } = req.body;
 
-  if (!firstName || !lastName || !email || !phone) {
-    return next(
-      appError.create("All fields are required", 400, httpStatusText.FAIL)
-    );
+  // تحقق من وجود المستخدم أولاً
+  const userCheckQuery = "SELECT User_id, first_name, last_name, phone FROM users WHERE email = ?";
+  const [userRows] = await userSql.query(userCheckQuery, [email]);
+  if (userRows.length === 0) {
+    return res.status(404).json({ status: "error", message: "User not found" });
   }
-  const userCheckQuery = "SELECT * FROM users WHERE User_id = ?";
-  const [user] = await userSql.query(userCheckQuery, [userId]);
+  const userId = userRows[0].User_id;
 
-  if (user.length === 0) {
-    return res.status(404).json({
-      status: "error",
-      message: `User with ID ${userId} not found`,
-      code: 404,
-      data: null,
-    });
+  // جلب بيانات السيارة القديمة
+  const carCheckQuery = "SELECT letters, plate_number, car_color, car_model FROM car_settings WHERE user_id = ?";
+  const [carRows] = await userSql.query(carCheckQuery, [userId]);
+  const oldCar = carRows[0] || {};
+
+  // استخدم القيم القديمة لو القيم الجديدة فاضية أو undefined أو null
+  function keepOld(newValue, oldValue) {
+    return (newValue !== undefined && newValue !== null && newValue !== "") ? newValue : oldValue;
   }
 
-  const updateQuery = `
+  const updatedFirstName = keepOld(firstName, userRows[0].first_name);
+  const updatedLastName = keepOld(lastName, userRows[0].last_name);
+  const updatedPhone = keepOld(phone, userRows[0].phone);
+
+  const updateUserQuery = `
     UPDATE users 
-    SET first_name = ?, last_name = ?, email = ?, phone = ? 
-    WHERE User_id = ?
+    SET first_name = ?, last_name = ?, phone = ?
+    WHERE email = ?
   `;
-  const values = [firstName, lastName, email, phone, userId];
-  try {
-    const [result] = await userSql.query(updateQuery, values);
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        status: "error",
-        message: `User with ID ${userId} not found`,
-        code: 404,
-        data: null,
-      });
+  await userSql.query(updateUserQuery, [updatedFirstName, updatedLastName, updatedPhone, email]);
+
+  const updatedLetters = keepOld(letters, oldCar.letters);
+  const updatedPlateNumber = keepOld(plate_number, oldCar.plate_number);
+  const updatedCarColor = keepOld(car_color, oldCar.car_color);
+  const updatedCarModel = keepOld(car_model, oldCar.car_model);
+
+  const updateCarQuery = `
+    UPDATE car_settings
+    SET letters = ?, plate_number = ?, car_color = ?, car_model = ?
+    WHERE user_id = ?
+  `;
+  await userSql.query(updateCarQuery, [updatedLetters, updatedPlateNumber, updatedCarColor, updatedCarModel, userId]);
+
+  // إرجاع القيم النهائية (المحدثة أو القديمة)
+  res.status(200).json({
+    status: "success",
+    message: "User and car updated successfully",
+    user: {
+      email,
+      firstName: updatedFirstName,
+      lastName: updatedLastName,
+      phone: updatedPhone
+    },
+    car: {
+      letters: updatedLetters,
+      plate_number: updatedPlateNumber,
+      car_color: updatedCarColor,
+      car_model: updatedCarModel
     }
-    res.status(200).json({ message: "The user has been updated successfully" });
-  } catch (err) {
-    console.error("Error during update:", err.message);
-    return next(
-      appError.create(
-        "An error occurred while updating the user",
-        500,
-        httpStatusText.FAIL
-      )
-    );
-  }
+  });
 });
 
 const postResetPassword = asyncMiddleware(async (req, res, next) => {
@@ -361,12 +387,90 @@ const postResetPassword = asyncMiddleware(async (req, res, next) => {
   }
 });
 
+const getUserData = asyncMiddleware(async (req, res) => {
+    const { email } = req.body;
 
+    if (!email) {
+        return res.status(400).json({
+            status: httpStatusText.FAIL,
+            message: "Email is required"
+        });
+    }
+
+    try {
+        console.log('Searching for user with email:', email);
+        
+        // First check if user exists
+        const [userCheck] = await userSql.query(
+            "SELECT User_id FROM users WHERE email = ?",
+            [email]
+        );
+        
+        if (userCheck.length === 0) {
+            console.log('User not found in users table');
+            return res.status(404).json({
+                status: httpStatusText.FAIL,
+                message: "User not found"
+            });
+        }
+
+        const userId = userCheck[0].User_id;
+        console.log('Found user with ID:', userId);
+
+        // Get complete user data with car settings
+        const [userData] = await userSql.query(
+            `SELECT u.User_id, u.first_name, u.last_name, u.email, u.phone,
+                    cs.letters, cs.plate_number, cs.car_color, cs.car_model
+             FROM users u
+             LEFT JOIN car_settings cs ON u.User_id = cs.user_id
+             WHERE u.email = ?`,
+            [email]
+        );
+
+        console.log('Complete user data:', userData);
+
+        if (userData.length === 0) {
+            return res.status(404).json({
+                status: httpStatusText.FAIL,
+                message: "User data not found"
+            });
+        }
+
+        const user = userData[0];
+        
+        // رجع البيانات زي ما هي حتى لو كلها null
+        res.status(200).json({
+            status: httpStatusText.SUCCESS,
+            data: {
+                user: {
+                    id: user.User_id,
+                    firstName: user.first_name,
+                    lastName: user.last_name,
+                    email: user.email,
+                    phone: user.phone
+                },
+                car: {
+                    letters: user.letters,
+                    plateNumber: user.plate_number,
+                    carColor: user.car_color,
+                    carModel: user.car_model
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching user data:", error);
+        res.status(500).json({
+            status: httpStatusText.FAIL,
+            message: "Internal Server Error"
+        });
+    }
+});
 
 module.exports = {
   getAllUsers,
   register,
   Login,
-  updateUser,
-  postResetPassword
+  updateUserAndCar,
+  postResetPassword,
+  getUserData
 };

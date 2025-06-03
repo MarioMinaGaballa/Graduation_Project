@@ -6,6 +6,24 @@ const verifyToken = require("../middleware/verifyToken");
 const otpController = require("../Controllers/otpController");
 const upload = require("../utils/uploadImage");
 const uploadImage = require("../Controllers/photo.Controller");
+const LicenseController = require("../Controllers/licenseController");
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// File storage setup for license images
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = './uploads';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+
+const licenseUpload = multer({ storage });
 
 // Logout route
 router.get("/logout", (req, res) => {
@@ -46,6 +64,11 @@ router.post("/datagoogle", userController.getUserGoogle);
 router.post("/upload", upload.single("image"), uploadImage.uploadImage);
 router.get("/images", uploadImage.getImage);
 
-// Add this line to the existing routes
+// License routes
+router.get("/get-license", LicenseController.getLicense);
+router.post("/upload-license", licenseUpload.fields([
+  { name: 'frontImage', maxCount: 1 },
+  { name: 'backImage', maxCount: 1 }
+]), LicenseController.uploadLicense);
 
 module.exports = router;

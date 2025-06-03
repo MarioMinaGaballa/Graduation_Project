@@ -60,4 +60,12 @@
 // // Initialize tables when the application starts
 // initializeTables();
 
-// module.exports = pool; 
+module.exports = {
+  host: 'localhost',
+  user: 'root',
+  password: '1272003',
+  database: 'myapp',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+}; 

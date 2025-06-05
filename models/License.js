@@ -1,7 +1,4 @@
-const mysql = require('mysql2/promise');
-const config = require('../config/database');
-
-const pool = mysql.createPool(config);
+const pool = require("../Schema/databasMySql");
 
 class License {
   static async findByEmail(email) {

@@ -3,8 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const compression = require('compression')
 const httpStatusText = require('./utils/http.status.text');
-const session = require('express-session');
-const passport = require('./config/passport');
 const path = require('path');
 
 const app = express();
@@ -13,13 +11,6 @@ const port = process.env.PORT || 3001;
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
-// For debugging - remove in production
-console.log('Server Configuration:', {
-    port: process.env.PORT,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL,
-    clientID: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not Set',
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Not Set'
-});
 
 // Middleware
 app.use(express.json());
@@ -27,53 +18,10 @@ app.use(cors());
 app.use(compression());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'your_secret_key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-}));
-
-// Initialize Passport and restore authentication state from session
-app.use(passport.initialize());
-app.use(passport.session());
-
 // Routes
 const otpRoutes = require('./routes/otpRoutes');
 const user = require('./routes/users');
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'view.html'));
-})
-// Google Signup Routes
-app.get('/auth/google/signup',
-    (req, res, next) => {
-        console.log('Starting Google signup...');
-        req.session.authType = 'signup';
-        next();
-    },
-    passport.authenticate('google-signup', { 
-        scope: ['profile', 'email'],
-        prompt: 'select_account'
-    })
-);
-
-// Google Login Routes
-app.get('/auth/google/login',
-    (req, res, next) => {
-        console.log('Starting Google login...');
-        req.session.authType = 'login';
-        next();
-    },
-    passport.authenticate('google-login', { 
-        scope: ['profile', 'email'],
-        prompt: 'select_account'
-    })
-);
 
 
 // API Routes

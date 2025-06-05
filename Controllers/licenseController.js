@@ -1,5 +1,4 @@
 const License = require('../models/License');
-const path = require('path');
 
 class LicenseController {
   static async getLicense(req, res) {
@@ -16,7 +15,7 @@ class LicenseController {
         return res.status(404).json({ error: 'License data not found' });
       }
       
-      const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
+      const baseUrl = `http://81.10.91.96:${process.env.PORT || 3000}`;
       let frontImageUrl = license.front_image_url;
       let backImageUrl = license.back_image_url;
       
